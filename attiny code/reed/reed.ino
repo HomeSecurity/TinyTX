@@ -1,4 +1,4 @@
-#define RF69_COMPAT 1
+#define RF69_COMPAT 0
 #include <JeeLib.h>
 #include <PinChangeInterrupt.h>
 #include <avr/sleep.h>
