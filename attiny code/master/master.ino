@@ -2,28 +2,28 @@
 #include <SoftwareSerial.h>
 #include <JeeLib.h> // https://github.com/jcw/jeelib
 
-#define RETRY_LIMIT 5       // Maximum number of times to retry
-#define RETRY_PERIOD 80
-#define ACK_TIME 100
-SoftwareSerial mySerial(10, 8); // RX, TX
-const byte numChars = 10;
-char receivedChars[10]; // an array to store the received data
-uint8_t KEY[] = "ABCDABCDABCDABCD"; // encryption key
-
+#define rfm12bId 31                    // 31 = listen for all nodes on same network group
+#define RETRY_PERIOD 10                // How soon to retry (in milliseconds) if ACK didn't come in
+#define RETRY_LIMIT 5                  // Maximum number of times to retry
+#define ACK_TIME 50                    // Number of milliseconds to wait for an ack
+SoftwareSerial mySerial(10, 8);        // RX, TX
+const int numChars = 10;               // buffer size
+char receivedChars[numChars];          // an array to store the received data
+uint8_t KEY[] = "ABCDABCDABCDABCD";    // encryption key
 
 typedef struct {
   int sensorId;
   int data;
-} Payload;
+} AktorPayload;
 
-Payload payload;
+AktorPayload payload;
 
 void setup() {
-  rf12_initialize(31, RF12_868MHZ, 210); // Initialise the RFM12B, 31 = All Nodes
+  rf12_initialize(rfm12bId, RF12_868MHZ, 210);
   //rf12_encrypt(KEY); //not working yet https://github.com/jcw/jeelib/issues/100
 
   mySerial.begin(9600);
-  mySerial.println("NOW REAADY");
+  //mySerial.println("NOW REAADY");
 }
 
 void loop() {
@@ -40,6 +40,7 @@ void readFromRadio() {
       return;
     }
 
+
     for (int i = 0; i < rf12_len; i++) {
       mySerial.print(rf12_data[i], BYTE);
     }
@@ -50,6 +51,7 @@ void readFromRadio() {
   }
 }
 
+//unfortunately it is only possible to read chars (or bytes)? -> awkward convertion to int
 void readFromRaspberry() { //https://forum.arduino.cc/index.php?topic=288234.0
   static byte ndx = 0;
   char endMarker = 'a';
@@ -79,32 +81,21 @@ void readFromRaspberry() { //https://forum.arduino.cc/index.php?topic=288234.0
       int sensorIdInt = atoi(receivedId);
       int dataInt = atoi(receivedData);
 
-      char tmpEcho[5];
-      char tmpEcho2[1];
-      itoa(sensorIdInt, tmpEcho, 10);
-      itoa(dataInt, tmpEcho2, 10);
-      mySerial.print("echo back: ");
-      mySerial.print(tmpEcho);
-      mySerial.print(" ");
-      mySerial.println(tmpEcho2);
-
       payload.sensorId = sensorIdInt;
       payload.data = dataInt;
+      
       rfwrite(); // Send data to aktor
     }
   }
 }
 
+
 static void rfwrite() {
   for (byte i = 0; i < RETRY_LIMIT; ++i) {
-    rf12_sleep(-1);
-    while (!rf12_canSend()) {
+    while (!rf12_canSend())
       rf12_recvDone();
-    }
     rf12_sendStart(RF12_HDR_ACK, &payload, sizeof payload);
-    rf12_sendWait(2);
     byte acked = waitForAck();
-    rf12_sleep(0);
     if (acked) {
       return;
     }
@@ -113,11 +104,11 @@ static void rfwrite() {
   }
 }
 
+// Wait a few milliseconds for proper ACK
 static byte waitForAck() {
   MilliTimer ackTimer;
   while (!ackTimer.poll(ACK_TIME)) {
-    if (rf12_recvDone() && rf12_crc == 0 &&
-        rf12_hdr == (RF12_HDR_DST | RF12_HDR_CTL | 31))
+    if (rf12_recvDone() && rf12_crc == 0 && rf12_hdr == (RF12_HDR_DST | RF12_HDR_CTL | rfm12bId))
       return 1;
   }
   return 0;

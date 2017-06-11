@@ -9,7 +9,7 @@ ISR(WDT_vect) {
 
 #define SENSOR_ID 23625
 #define TYPE 3300
-#define rfm12bId 5
+#define rfm12bId 31
 #define RETRY_PERIOD 100    // How soon to retry (in milliseconds) if ACK didn't come in
 #define RETRY_LIMIT 20       // Maximum number of times to retry
 #define ACK_TIME 100        // Number of milliseconds to wait for an ack
@@ -32,6 +32,8 @@ Payload payload;
 Registration registration;
 
 void setup() {
+  Serial.begin(9600);
+  Serial.println("Starting...");
   rf12_initialize(rfm12bId, RF12_868MHZ, 210);
   rf12_sleep(0);
 
@@ -59,6 +61,7 @@ void wakeUp() {
 }
 
 void loop() {
+  Serial.println("kden");
   int switchState = digitalRead(SW_PIN);
 
   if (switchState == HIGH) {
@@ -74,7 +77,7 @@ void loop() {
   sleep_mode();
 }
 
-//todo "Object" übergeben anstatt boolean (c der hurensohn)
+//todo "Object" übergeben anstatt boolean ^^
 static void rfwrite(boolean init) {
   for (byte i = 0; i < RETRY_LIMIT; ++i) {
     rf12_sleep(-1);
