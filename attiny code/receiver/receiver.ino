@@ -1,13 +1,14 @@
 #define RF69_COMPAT 1
 #include <JeeLib.h> // https://github.com/jcw/jeelib
 
-#define SENSOR_ID 31558
-#define TYPE 9999
+#define SENSOR_ID 5215
+#define TYPE 2001
 #define rfm12bId 31
 #define RETRY_PERIOD 100 // How soon to retry (in milliseconds) if ACK didn't come in
 #define RETRY_LIMIT 20   // Maximum number of times to retry
 #define ACK_TIME 100     // Number of milliseconds to wait for an ack
 #define SW_PIN 7         // Aktor pin
+#define LED_PIN 3         
 
 typedef struct {
   int zero;
@@ -35,6 +36,15 @@ void setup () {
 
   pinMode(SW_PIN, OUTPUT);
   digitalWrite(SW_PIN, LOW);
+
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+}
+
+void enableLED(int duration){
+  digitalWrite(LED_PIN, HIGH);
+  delay(duration);
+  digitalWrite(LED_PIN, LOW);
 }
 
 void loop() {
@@ -70,7 +80,11 @@ void loop() {
       return; //message not for this sensor; skip handling & ack !
     }
 
-    if (readings[1] == 0) {
+    //message targeted for this aktor
+    
+    enableLED(100);
+
+    if (readings[1] == 1) {
       Serial.println("State set to LOW");
       digitalWrite(SW_PIN, LOW);
     } else {
@@ -92,7 +106,7 @@ static void rfwrite() {
       rf12_recvDone();
     }
     rf12_sendStart(RF12_HDR_ACK, &registration, sizeof registration);
-    rf12_sendWait(2);
+    //rf12_sendWait(2);
     byte acked = waitForAck();
     rf12_sleep(0);
     if (acked) {
