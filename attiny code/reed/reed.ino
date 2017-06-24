@@ -1,4 +1,4 @@
-#define RF69_COMPAT 0
+#define RF69_COMPAT 1
 #include <JeeLib.h>
 #include <PinChangeInterrupt.h>
 #include <avr/sleep.h>
@@ -7,13 +7,15 @@ ISR(WDT_vect) {
   Sleepy::watchdogEvent();
 }
 
-#define SENSOR_ID 23625
-#define TYPE 3300
+#define SENSOR_ID 9573
+#define TYPE 1000
 #define rfm12bId 31
 #define RETRY_PERIOD 100    // How soon to retry (in milliseconds) if ACK didn't come in
 #define RETRY_LIMIT 20       // Maximum number of times to retry
 #define ACK_TIME 100        // Number of milliseconds to wait for an ack
-#define SW_PIN 10         // Reed switch connected from ground to this pin (D10/ATtiny pin 13)
+#define SW_PIN 7         // Reed switch connected from ground to this pin (D10/ATtiny pin 13)
+#define LED_1 3
+#define LED_2 9
 
 typedef struct {
   int sensorId;
@@ -32,6 +34,9 @@ Payload payload;
 Registration registration;
 
 void setup() {
+  pinMode(LED_1, OUTPUT);
+  pinMode(LED_2, OUTPUT);
+
   Serial.begin(9600);
   Serial.println("Starting...");
   rf12_initialize(rfm12bId, RF12_868MHZ, 210);
@@ -57,6 +62,18 @@ void setup() {
   sleep_mode();
 }
 
+void enableLED(boolean led1, boolean led2, int duration) {
+  if (led1) {
+    digitalWrite(LED_1, HIGH);
+  }
+  if (led2) {
+    digitalWrite(LED_2, HIGH);
+  }
+  delay(duration);
+  digitalWrite(LED_1, LOW);
+  digitalWrite(LED_2, LOW);
+}
+
 void wakeUp() {
 }
 
@@ -80,6 +97,7 @@ void loop() {
 //todo "Object" übergeben anstatt boolean ^^
 static void rfwrite(boolean init) {
   for (byte i = 0; i < RETRY_LIMIT; ++i) {
+    enableLED(true, false, 100);
     rf12_sleep(-1);
     while (!rf12_canSend()) {
       rf12_recvDone();
@@ -89,10 +107,11 @@ static void rfwrite(boolean init) {
     } else {
       rf12_sendStart(RF12_HDR_ACK, &payload, sizeof payload);
     }
-    rf12_sendWait(2);
+    //rf12_sendWait(2);
     byte acked = waitForAck();
     rf12_sleep(0);
     if (acked) {
+      enableLED(false, true, 500);
       return;
     }
 
